@@ -303,6 +303,10 @@ async function selectAndFetchFilesForReview(
   // 设置token限制为最大输入的70%
   const tokenLimit = maxInputTokens * 0.7;
 
+  // 估算每个模板的token数量
+  const mainPromptTokens = Math.ceil(MAIN_FILE_PROMPT.length * TOKEN_ESTIMATION_RATIO);
+  const regularPromptTokens = Math.ceil(REGULAR_FILE_PROMPT.length * TOKEN_ESTIMATION_RATIO);
+
   // 获取文件内容
   for (const fileMeta of files) {
     if (selected.length >= MAX_FILES_TO_REVIEW) break;
@@ -321,9 +325,12 @@ async function selectAndFetchFilesForReview(
         .filter((line) => line.trim() !== "")
         .join("\n");
 
-      // 估算token使用量
+      // 估算token使用量，包括文件内容、路径和对应的prompt模板
+      const promptTokens = fileMeta.path.toLowerCase().includes("main.py")
+        ? mainPromptTokens
+        : regularPromptTokens;
       const estimatedTokens = Math.ceil(
-        (content.length + fileMeta.path.length) * TOKEN_ESTIMATION_RATIO
+        (content.length + fileMeta.path.length) * TOKEN_ESTIMATION_RATIO + promptTokens
       );
 
       // 检查token限制
