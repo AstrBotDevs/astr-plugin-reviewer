@@ -388,19 +388,21 @@ async function reviewFileBatch(openai, files, config) {
   const prompt = buildBatchPrompt(files);
 
   try {
-    const completion = await openai.chat.completions.create({
+    // 构建基础参数
+    const completionParams = {
       model: config.model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是AstrBot插件代码审查专家。你的任务是分析提供的Python文件。针对每个文件，分别提供一份审查报告，以`### 文件路径`为标题开头。将所有报告合并为单一响应。",
-        },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: config.maxOutputTokens,
-      temperature: 0.2,
-    });
+      messages: [{ role: "user", content: prompt }],
+    };
+
+    // 根据模型名称决定是否添加特殊参数
+    if (config.model.includes("qwen3-235b-a22b-fp8")) {
+      completionParams.response_format = { type: "text" };
+    } else {
+      completionParams.temperature = 0.2;
+      completionParams.max_tokens = config.maxOutputTokens;
+    }
+
+    const completion = await openai.chat.completions.create(completionParams);
 
     const responseContent = completion.choices[0].message.content || "";
     if (!responseContent) {
