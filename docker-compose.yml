@@ -1,0 +1,19 @@
+services:
+  astr-plugin-reviewer:
+    build: .
+    ports:
+      - "10086:3000"
+    environment:
+      - APP_ID=${APP_ID}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - OPENAI_MAX_INPUT_TOKENS=${OPENAI_MAX_INPUT_TOKENS}
+      - OPENAI_MAX_OUTPUT_TOKENS=${OPENAI_MAX_OUTPUT_TOKENS}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+    volumes:
+      - .:/app
+    restart: unless-stopped
