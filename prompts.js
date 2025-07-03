@@ -45,7 +45,7 @@ export const MAIN_FILE_PROMPT = `
     - 检查代码中是否存在**同步阻塞**操作，注意仅检测并指出网络I/O相关问题，无需检测或指出文件I/O相关问题。
 
 - **数据持久化**:
-    - 对于需要持久化保存的数据，应检查其是否通过从 astrabot.api.star 导入 StarTools 并调用 get_data_dir() 方法来获取规范的数据存储目录，以避免硬编码路径。
+    - 对于需要持久化保存的数据，应检查其是否通过从 astrabot.api.star 导入 StarTools 并调用 StarTools.get_data_dir() 方法来获取规范的数据存储目录，以避免硬编码路径。
 
 
 ### 4. 针对 main.py 的额外审查要求 (必须严格遵守)
@@ -156,7 +156,7 @@ export const REGULAR_FILE_PROMPT = `
     - 检查代码中是否存在**同步阻塞**操作，注意仅检测并指出网络I/O相关问题，无需检测或指出文件I/O相关问题。
 
 - **数据持久化**:
-    - 对于需要持久化保存的数据，应检查其是否通过从 astrabot.api.star 导入 StarTools 并调用 get_data_dir() 方法来获取规范的数据存储目录，以避免硬编码路径。
+    - 对于需要持久化保存的数据，应检查其是否通过从 astrabot.api.star 导入 StarTools 并调用 StarTools.get_data_dir() 方法来获取规范的数据存储目录，以避免硬编码路径。
 
 ## 特别注意
 
