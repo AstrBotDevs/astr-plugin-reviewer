@@ -586,11 +586,11 @@ async function postOrUpdateComment(context, type, data, isUpdate, commentId) {
       title: `## 🤖 AI代码审核报告 for ${
         data.pluginData?.name || "Unknown Plugin"
       }`,
-      body: `你好！我已经对你提交的插件代码进行了初步自动化审核：\n\n${
+      body: `您好！我已经对你提交的插件代码进行了初步自动化审核，作为初步参考:\n\n${
         data.review || "无审核内容"
       }`,
       footer:
-        "*此报告由AI自动生成，旨在提供初步反馈和改进建议，不能完全替代人工审核。最终决策以社区维护者的人工审核为准。*",
+        "*此报告由AI自动生成，旨在提供初步反馈和改进建议，不能完全替代人工审核。最终决策以社区维护者的人工审核为准。目前自动审核处于试验阶段，如遇问题请向维护者反馈。*",
     },
   };
 
