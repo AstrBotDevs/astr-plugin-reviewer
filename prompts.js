@@ -85,6 +85,8 @@ export const MAIN_FILE_PROMPT = `
       async def on_llm_resp(self, event: AstrMessageEvent, resp: LLMResponse):
           ...
       
+- **@filter.llm_tool 与 @filter.permission_type 的使用限制**:
+    - @filter.permission_type 装饰器无法用于 @filter.llm_tool 装饰的方法上，这种权限控制组合是无效的。
 
 - **通用事件监听器签名**:
     - **除去 on_astrbot_loaded 外**，所有使用 @filter 装饰的事件监听器方法（如 @filter.command, @filter.on_full_match 等），其签名中都必须包含 event 参数。
