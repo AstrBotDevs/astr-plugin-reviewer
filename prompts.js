@@ -33,9 +33,7 @@ export const MAIN_FILE_PROMPT = `
     - 是否存在潜在的性能瓶颈？
     - 是否有未处理的异常或资源泄漏风险？
 
-### 3. 强制性规则检查 (必须严格遵守)
-
-以下是必须严格执行的检查项，如有违反，必须明确指出：
+### 3. 框架适应性检查
 
 - **日志记录**:
     - 日志记录器 logger **必须且只能**从 astrabot.api 导入 (即 from astrbot.api import logger)。
@@ -46,6 +44,8 @@ export const MAIN_FILE_PROMPT = `
 
 - **数据持久化**:
     - 对于需要持久化保存的数据，应检查其是否通过从 astrabot.api.star 导入 StarTools 并调用 StarTools.get_data_dir() 方法来获取规范的数据存储目录，以避免硬编码路径。
+    - 注意，StarTools.get_data_dir() 方法返回的路径是一个 Path 对象，而不是字符串，因此在使用时需要确保正确处理。
+    - StarTools.get_data_dir() 方法返回的路径为 data/plugin_data/<plugin_name>。如插件需要操作其他目录的文件，则禁止向用户提出违反了数据持久化的检查项。
 
 
 ### 4. 针对 main.py 的额外审查要求 (必须严格遵守)
@@ -55,10 +55,10 @@ export const MAIN_FILE_PROMPT = `
 - **插件注册与主类**:
     - 文件中**必须**存在一个继承自 Star 的类。
     - 该类**必须**使用 @register 装饰器进行注册。
-    - 注册格式应为 @register("插件名", "作者", "描述", "版本")。
+    - 注册格式应为 @register("插件名", "作者", "描述", "版本", "仓库链接")。
     - **正确示例**:
 
-      @register("helloworld", "Soulter", "一个简单的 Hello World 插件", "1.0.0")
+      @register("helloworld", "Soulter", "一个简单的 Hello World 插件", "1.0.0", "repo url")
       class MyPlugin(Star):
           def __init__(self, context: Context):
               super().__init__(context)
@@ -146,9 +146,7 @@ export const REGULAR_FILE_PROMPT = `
     - 是否存在潜在的性能瓶颈？
     - 是否有未处理的异常或资源泄漏风险？
 
-### 3. 强制性规则检查 (必须严格遵守)
-
-以下是必须严格执行的检查项，如有违反，必须明确指出：
+### 3. 框架适应性检查
 
 - **日志记录**:
     - 日志记录器 logger **必须且只能**从 astrabot.api 导入 (即 from astrbot.api import logger)。
@@ -159,6 +157,8 @@ export const REGULAR_FILE_PROMPT = `
 
 - **数据持久化**:
     - 对于需要持久化保存的数据，应检查其是否通过从 astrabot.api.star 导入 StarTools 并调用 StarTools.get_data_dir() 方法来获取规范的数据存储目录，以避免硬编码路径。
+    - 注意，StarTools.get_data_dir() 方法返回的路径是一个 Path 对象，而不是字符串，因此在使用时需要确保正确处理。
+    - StarTools.get_data_dir() 方法返回的路径为 data/plugin_data/<plugin_name>。如插件需要操作其他目录的文件，则禁止向用户提出违反了数据持久化的检查项。
 
 ## 特别注意
 
