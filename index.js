@@ -530,6 +530,8 @@ async function validateIssueFormat(issue) {
     errors.push("请在JSON中提供一个有效的 `name`。");
   if (!pluginData.desc || pluginData.desc === "插件介绍")
     errors.push("请在JSON中提供一个有效的 `desc`。");
+  if (!pluginData.author || pluginData.author === "作者名")
+    errors.push("请在JSON中提供一个有效的 `author`。");
   if (!pluginData.repo) {
     errors.push("请在JSON中提供 `repo` 仓库地址。");
   } else {
