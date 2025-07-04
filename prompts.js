@@ -56,9 +56,16 @@ export const MAIN_FILE_PROMPT = `
     - 文件中**必须**存在一个继承自 Star 的类。
     - 该类**必须**使用 @register 装饰器进行注册。
     - 注册格式应为 @register("插件名", "作者", "描述", "版本", "仓库链接")。
-    - **正确示例**:
+    - 注册格式也可以为 @register("插件名", "作者", "描述", "版本")。
+    - **正确示例-1**:
 
       @register("helloworld", "Soulter", "一个简单的 Hello World 插件", "1.0.0", "repo url")
+      class MyPlugin(Star):
+          def __init__(self, context: Context):
+              super().__init__(context)
+
+    - **正确示例-2**:
+      @register("helloworld", "Soulter", "一个简单的 Hello World 插件", "1.0.0")
       class MyPlugin(Star):
           def __init__(self, context: Context):
               super().__init__(context)
