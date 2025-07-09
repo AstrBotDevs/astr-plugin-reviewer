@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { MAIN_FILE_PROMPT, REGULAR_FILE_PROMPT } from "./prompts.js";
+import yaml from "js-yaml";
 
 // 常量定义
 const MAX_FILES_TO_REVIEW = 15;
@@ -136,18 +137,27 @@ async function reviewPlugin(context, pluginData) {
     if (!owner || !repo) {
       return {
         success: false,
-        error: "Invalid repository URL. Could not parse owner and repo.",
+        error: "无效的仓库URL。无法解析所有者和仓库名。",
       };
     }
 
     const repoInfo = { owner, repo };
+    
+    // 首先验证metadata.yaml文件
+    const metadataResult = await validateMetadataYaml(context.octokit, repoInfo, pluginData);
+    if (!metadataResult.success) {
+      return {
+        success: false,
+        error: `验证metadata.yaml失败:\n${metadataResult.errors.map(e => `- ${e}`).join('\n')}`,
+      };
+    }
 
     // 执行AI代码审核
     return await performAIReview(context.octokit, repoInfo);
   } catch (error) {
     return {
       success: false,
-      error: `An error occurred while fetching or analyzing code: ${error.message}`,
+      error: `获取或分析代码时发生错误: ${error.message}`,
     };
   }
 }
@@ -229,7 +239,7 @@ async function performAIReview(octokit, repoInfo) {
   if (allPythonFiles.length === 0) {
     return {
       success: false,
-      error: "No Python (.py) files found in the repository.",
+      error: "在代码仓库中未找到任何Python（.py）文件。",
     };
   }
 
@@ -247,7 +257,7 @@ async function performAIReview(octokit, repoInfo) {
     return {
       success: false,
       error:
-        "No files were selected for review due to token limits or an empty repository.",
+        "由于token限制或空仓库，未选择任何文件进行审核。",
     };
   }
 
@@ -389,7 +399,7 @@ function removeCommentsFromLine(line) {
  */
 async function reviewFileBatch(openai, files, config) {
   if (files.length === 0) {
-    return { success: false, error: "No files were selected for review." };
+    return { success: false, error: "未选择任何文件进行审查。" };
   }
 
   const prompt = buildBatchPrompt(files);
@@ -413,7 +423,7 @@ async function reviewFileBatch(openai, files, config) {
 
     const responseContent = completion.choices[0].message.content || "";
     if (!responseContent) {
-      return { success: false, error: "AI returned an empty response." };
+      return { success: false, error: "AI返回了空响应。" };
     }
 
     return {
@@ -421,10 +431,10 @@ async function reviewFileBatch(openai, files, config) {
       review: responseContent,
     };
   } catch (error) {
-    console.error(`Batch file review API call failed:`, error);
+    console.error(`批量文件审核API调用失败:`, error);
     return {
       success: false,
-      error: "An internal error occurred while calling the AI review service.",
+      error: "调用AI审核服务时发生内部错误。",
     };
   }
 }
@@ -458,7 +468,7 @@ function combineReviewResults(reviewResult, totalFileCount, selectedFiles) {
       success: false,
       error:
         reviewResult.error ||
-        "Code review failed and no specific error was provided.",
+        "代码审核失败，无具体错误信息。",
     };
   }
 
@@ -551,6 +561,86 @@ async function validateIssueFormat(issue) {
 }
 
 /**
+ * 验证仓库中的metadata.yaml文件并与提交的JSON数据进行比较。
+ * @param {import('@octokit/core').Octokit} octokit Octokit实例。
+ * @param {{owner: string, repo: string}} repoInfo 仓库信息。
+ * @param {object} pluginData 从Issue中解析出的插件数据。
+ * @returns {Promise<{success: boolean, errors: string[]}>} 验证结果。
+ */
+async function validateMetadataYaml(octokit, repoInfo, pluginData) {
+  const errors = [];
+  
+  try {
+    // 获取仓库默认分支信息
+    const { data: repo } = await octokit.rest.repos.get(repoInfo);
+    const defaultBranch = repo.default_branch;
+    
+    // 尝试获取metadata.yaml文件
+    let yamlContent;
+    try {
+      const { data } = await octokit.rest.repos.getContent({
+        ...repoInfo,
+        path: "metadata.yaml",
+        ref: defaultBranch
+      });
+      
+      if (!data || !data.content) {
+        errors.push("metadata.yaml文件内容为空");
+        return { success: false, errors };
+      }
+      
+      // 解码Base64编码的内容
+      const content = Buffer.from(data.content, 'base64').toString('utf8');
+      yamlContent = yaml.load(content);
+    } catch (error) {
+      if (error.status === 404) {
+        errors.push("未在仓库中找到必需的metadata.yaml文件");
+      } else {
+        errors.push(`无法读取metadata.yaml文件: ${error.message}`);
+      }
+      return { success: false, errors };
+    }
+    
+    // 验证YAML中的关键字段与JSON提交是否一致
+    if (!yamlContent) {
+      errors.push("无法解析metadata.yaml文件内容");
+      return { success: false, errors };
+    }
+    
+    // 检查name字段
+    if (yamlContent.name !== pluginData.name) {
+      errors.push(`metadata.yaml中的name字段 "${yamlContent.name}" 与JSON中提交的 "${pluginData.name}" 不一致`);
+    }
+    
+    // 检查author字段
+    if (yamlContent.author !== pluginData.author) {
+      errors.push(`metadata.yaml中的author字段 "${yamlContent.author}" 与JSON中提交的 "${pluginData.author}" 不一致`);
+    }
+    
+    // 检查version字段
+    if (!yamlContent.version) {
+      errors.push("metadata.yaml中缺少必需的version字段");
+    }
+    
+    // 检查description字段 (与JSON中的desc对应)
+    if (yamlContent.description !== pluginData.desc) {
+      errors.push(`metadata.yaml中的description字段 "${yamlContent.description}" 与JSON中提交的desc "${pluginData.desc}" 不一致`);
+    }
+    
+    // 检查repo字段
+    if (yamlContent.repo !== pluginData.repo) {
+      errors.push(`metadata.yaml中的repo字段 "${yamlContent.repo}" 与JSON中提交的 "${pluginData.repo}" 不一致`);
+    }
+    
+    return { success: errors.length === 0, errors };
+  } catch (error) {
+    console.error("Error validating metadata.yaml:", error);
+    errors.push(`验证metadata.yaml时出现系统错误: ${error.message}`);
+    return { success: false, errors };
+  }
+}
+
+/**
  * 在Issue上发布或更新评论，并处理Issue正文的更新。
  * @param {import('probot').Context} context 事件上下文。
  * @param {string} type 要发布的评论类型。
@@ -578,7 +668,7 @@ async function postOrUpdateComment(context, type, data, isUpdate, commentId) {
     },
     review_failure: {
       title: "## ❌ 插件审核失败",
-      body: `您好！在对您的插件进行审核时遇到了技术问题：\n\n\`\`\`\n${
+      body: `您好！在对您的插件进行审核时遇到了问题：\n\n\`\`\`\n${
         data.error || "未知错误"
       }\n\`\`\``,
       footer:

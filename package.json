@@ -16,6 +16,7 @@
     "test": "node --test"
   },
   "dependencies": {
+    "js-yaml": "^4.1.0",
     "openai": "^5.8.2",
     "probot": "^13.0.1"
   },

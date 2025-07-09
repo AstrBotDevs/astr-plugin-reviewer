@@ -54,7 +54,7 @@ export const MAIN_FILE_PROMPT = `
 
 - **插件注册与主类**:
     - 文件中**必须**存在一个继承自 Star 的类。
-    - 该类**必须**使用 @register 装饰器进行注册。
+    - 该类**可以**使用 @register 装饰器进行注册。
     - 注册格式应为 @register("插件名", "作者", "描述", "版本", "仓库链接")。
     - 注册格式也可以为 @register("插件名", "作者", "描述", "版本")。
     - **正确示例-1**:
@@ -66,6 +66,12 @@ export const MAIN_FILE_PROMPT = `
 
     - **正确示例-2**:
       @register("helloworld", "Soulter", "一个简单的 Hello World 插件", "1.0.0")
+      class MyPlugin(Star):
+          def __init__(self, context: Context):
+              super().__init__(context)
+
+    - **注意**: 在 v3.5.20 版本之后，@register 装饰器已废弃，AstrBot 会自动识别继承自 Star 的类并将其作为插件类加载。因此，建议在新版本中不再使用 @register 装饰器。
+    - **v3.5.20 版本之后的示例**:
       class MyPlugin(Star):
           def __init__(self, context: Context):
               super().__init__(context)
