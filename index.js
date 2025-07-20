@@ -623,8 +623,12 @@ async function validateMetadataYaml(octokit, repoInfo, pluginData) {
     }
     
     // 检查description字段 (与JSON中的desc对应)
-    if (yamlContent.description !== pluginData.desc) {
-      errors.push(`metadata.yaml中的description字段 "${yamlContent.description}" 与JSON中提交的desc "${pluginData.desc}" 不一致`);
+    // 支持metadata.yaml中使用description或desc字段
+    const yamlDesc = yamlContent.description || yamlContent.desc;
+    if (!yamlDesc) {
+      errors.push("metadata.yaml中缺少必需的description或desc字段");
+    } else if (yamlDesc !== pluginData.desc) {
+      errors.push(`metadata.yaml中的description/desc字段 "${yamlDesc}" 与JSON中提交的desc "${pluginData.desc}" 不一致`);
     }
     
     // 检查repo字段
