@@ -64,6 +64,46 @@ export default (app) => {
       await postSystemErrorComment(context, error);
     }
   });
+
+  // 监听 Issue 评论中的 @bot review 触发
+  app.on(["issue_comment.created"], async (context) => {
+    const { issue, comment } = context.payload;
+
+    // 仅在带有 plugin-publish 标签的 Issue 上生效
+    if (!issue.labels?.some((label) => label.name === "plugin-publish")) {
+      return;
+    }
+
+    const lastReviewComment = await findLastReviewComment(context);
+
+    // 检查是否需要重新审核
+    if (lastReviewComment?.body.includes("## ⏳ 正在审核中...")) {
+      return;
+    }
+
+    // 忽略机器人自身的评论，避免循环触发
+    if (comment.user?.type === "Bot") return;
+
+    try {
+      const mentionNames = await getBotMentionNames(context);
+      const body = comment.body || "";
+
+      // 命中条件：@bot名称 且包含 review 关键词（大小写不敏感）
+      const hasMention = mentionNames.some((name) =>
+        new RegExp(
+          `@${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+          "i"
+        ).test(body)
+      );
+      const hasReviewKeyword = /(^|\s)review(\s|$)/i.test(body);
+
+      if (!(hasMention && hasReviewKeyword)) return;
+
+      await handlePluginReview(context, false, null);
+    } catch (error) {
+      await postSystemErrorComment(context, error);
+    }
+  });
 };
 
 /**
@@ -142,13 +182,19 @@ async function reviewPlugin(context, pluginData) {
     }
 
     const repoInfo = { owner, repo };
-    
+
     // 首先验证metadata.yaml文件
-    const metadataResult = await validateMetadataYaml(context.octokit, repoInfo, pluginData);
+    const metadataResult = await validateMetadataYaml(
+      context.octokit,
+      repoInfo,
+      pluginData
+    );
     if (!metadataResult.success) {
       return {
         success: false,
-        error: `验证metadata.yaml失败:\n${metadataResult.errors.map(e => `- ${e}`).join('\n')}`,
+        error: `验证metadata.yaml失败:\n${metadataResult.errors
+          .map((e) => `- ${e}`)
+          .join("\n")}`,
       };
     }
 
@@ -256,8 +302,7 @@ async function performAIReview(octokit, repoInfo) {
   if (selectedFiles.length === 0) {
     return {
       success: false,
-      error:
-        "由于token限制或空仓库，未选择任何文件进行审核。",
+      error: "由于token限制或空仓库，未选择任何文件进行审核。",
     };
   }
 
@@ -314,8 +359,12 @@ async function selectAndFetchFilesForReview(
   const tokenLimit = maxInputTokens * 0.7;
 
   // 估算每个模板的token数量
-  const mainPromptTokens = Math.ceil(MAIN_FILE_PROMPT.length * TOKEN_ESTIMATION_RATIO);
-  const regularPromptTokens = Math.ceil(REGULAR_FILE_PROMPT.length * TOKEN_ESTIMATION_RATIO);
+  const mainPromptTokens = Math.ceil(
+    MAIN_FILE_PROMPT.length * TOKEN_ESTIMATION_RATIO
+  );
+  const regularPromptTokens = Math.ceil(
+    REGULAR_FILE_PROMPT.length * TOKEN_ESTIMATION_RATIO
+  );
 
   // 获取文件内容
   for (const fileMeta of files) {
@@ -340,7 +389,8 @@ async function selectAndFetchFilesForReview(
         ? mainPromptTokens
         : regularPromptTokens;
       const estimatedTokens = Math.ceil(
-        (content.length + fileMeta.path.length) * TOKEN_ESTIMATION_RATIO + promptTokens
+        (content.length + fileMeta.path.length) * TOKEN_ESTIMATION_RATIO +
+          promptTokens
       );
 
       // 检查token限制
@@ -466,9 +516,7 @@ function combineReviewResults(reviewResult, totalFileCount, selectedFiles) {
   if (!reviewResult.success) {
     return {
       success: false,
-      error:
-        reviewResult.error ||
-        "代码审核失败，无具体错误信息。",
+      error: reviewResult.error || "代码审核失败，无具体错误信息。",
     };
   }
 
@@ -569,28 +617,28 @@ async function validateIssueFormat(issue) {
  */
 async function validateMetadataYaml(octokit, repoInfo, pluginData) {
   const errors = [];
-  
+
   try {
     // 获取仓库默认分支信息
     const { data: repo } = await octokit.rest.repos.get(repoInfo);
     const defaultBranch = repo.default_branch;
-    
+
     // 尝试获取metadata.yaml文件
     let yamlContent;
     try {
       const { data } = await octokit.rest.repos.getContent({
         ...repoInfo,
         path: "metadata.yaml",
-        ref: defaultBranch
+        ref: defaultBranch,
       });
-      
+
       if (!data || !data.content) {
         errors.push("metadata.yaml文件内容为空");
         return { success: false, errors };
       }
-      
+
       // 解码Base64编码的内容
-      const content = Buffer.from(data.content, 'base64').toString('utf8');
+      const content = Buffer.from(data.content, "base64").toString("utf8");
       yamlContent = yaml.load(content);
     } catch (error) {
       if (error.status === 404) {
@@ -600,49 +648,61 @@ async function validateMetadataYaml(octokit, repoInfo, pluginData) {
       }
       return { success: false, errors };
     }
-    
+
     // 验证YAML中的关键字段与JSON提交是否一致
     if (!yamlContent) {
       errors.push("无法解析metadata.yaml文件内容");
       return { success: false, errors };
     }
-    
+
     // 检查name字段
     if (yamlContent.name !== pluginData.name) {
-      errors.push(`metadata.yaml中的name字段 "${yamlContent.name}" 与JSON中提交的 "${pluginData.name}" 不一致`);
+      errors.push(
+        `metadata.yaml中的name字段 "${yamlContent.name}" 与JSON中提交的 "${pluginData.name}" 不一致`
+      );
     }
-    
+
     // 检查author字段
     if (yamlContent.author !== pluginData.author) {
-      errors.push(`metadata.yaml中的author字段 "${yamlContent.author}" 与JSON中提交的 "${pluginData.author}" 不一致`);
+      errors.push(
+        `metadata.yaml中的author字段 "${yamlContent.author}" 与JSON中提交的 "${pluginData.author}" 不一致`
+      );
     }
-    
+
     // 检查version字段
     if (!yamlContent.version) {
       errors.push("metadata.yaml中缺少必需的version字段");
     }
-    
+
     // 检查description/desc字段
-    const hasDescription = 'description' in yamlContent;
-    const hasDesc = 'desc' in yamlContent;
-    
+    const hasDescription = "description" in yamlContent;
+    const hasDesc = "desc" in yamlContent;
+
     if (!hasDescription && !hasDesc) {
       errors.push("metadata.yaml中缺少必需的description或desc字段");
     } else if (hasDescription && hasDesc) {
-      errors.push("metadata.yaml中不能同时存在description和desc字段，请只保留其中一个");
+      errors.push(
+        "metadata.yaml中不能同时存在description和desc字段，请只保留其中一个"
+      );
     } else {
-      const yamlDesc = hasDescription ? yamlContent.description : yamlContent.desc;
+      const yamlDesc = hasDescription
+        ? yamlContent.description
+        : yamlContent.desc;
       if (yamlDesc !== pluginData.desc) {
-        const fieldName = hasDescription ? 'description' : 'desc';
-        errors.push(`metadata.yaml中的${fieldName}字段 "${yamlDesc}" 与JSON中提交的desc "${pluginData.desc}" 不一致`);
+        const fieldName = hasDescription ? "description" : "desc";
+        errors.push(
+          `metadata.yaml中的${fieldName}字段 "${yamlDesc}" 与JSON中提交的desc "${pluginData.desc}" 不一致`
+        );
       }
     }
-    
+
     // 检查repo字段
     if (yamlContent.repo !== pluginData.repo) {
-      errors.push(`metadata.yaml中的repo字段 "${yamlContent.repo}" 与JSON中提交的 "${pluginData.repo}" 不一致`);
+      errors.push(
+        `metadata.yaml中的repo字段 "${yamlContent.repo}" 与JSON中提交的 "${pluginData.repo}" 不一致`
+      );
     }
-    
+
     return { success: errors.length === 0, errors };
   } catch (error) {
     console.error("Error validating metadata.yaml:", error);
@@ -811,4 +871,22 @@ function getConfig() {
     maxInputTokens: parseInt(process.env.OPENAI_MAX_INPUT_TOKENS, 10) || 4000,
     maxOutputTokens: parseInt(process.env.OPENAI_MAX_OUTPUT_TOKENS, 10) || 1500,
   };
+}
+
+/**
+ * 获取用于匹配的 bot 提及名称列表。
+ * 基于当前已认证的 GitHub App 的 slug 推导：@{slug} 与 @{slug}[bot]
+ * @param {import('probot').Context} context
+ * @returns {Promise<string[]>}
+ */
+async function getBotMentionNames(context) {
+  try {
+    const { data: appData } = await context.octokit.apps.getAuthenticated();
+    const slug = appData?.slug;
+    if (!slug) return [];
+    return Array.from(new Set([slug, `${slug}[bot]`]));
+  } catch (e) {
+    // 静默失败，返回空名单
+    return [];
+  }
 }
