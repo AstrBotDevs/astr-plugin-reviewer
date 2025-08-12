@@ -85,19 +85,9 @@ export default (app) => {
     if (comment.user?.type === "Bot") return;
 
     try {
-      const mentionNames = await getBotMentionNames(context);
+      // 命中条件固定为评论内含有@astrpluginreviewer review
       const body = comment.body || "";
-
-      // 命中条件：@bot名称 且包含 review 关键词（大小写不敏感）
-      const hasMention = mentionNames.some((name) =>
-        new RegExp(
-          `@${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
-          "i"
-        ).test(body)
-      );
-      const hasReviewKeyword = /(^|\s)review(\s|$)/i.test(body);
-
-      if (!(hasMention && hasReviewKeyword)) return;
+      if (!/@astrpluginreviewer\s+review/i.test(body)) return;
 
       await handlePluginReview(context, false, null);
     } catch (error) {
@@ -873,20 +863,4 @@ function getConfig() {
   };
 }
 
-/**
- * 获取用于匹配的 bot 提及名称列表。
- * 基于当前已认证的 GitHub App 的 slug 推导：@{slug} 与 @{slug}[bot]
- * @param {import('probot').Context} context
- * @returns {Promise<string[]>}
- */
-async function getBotMentionNames(context) {
-  try {
-    const { data: appData } = await context.octokit.apps.getAuthenticated();
-    const slug = appData?.slug;
-    if (!slug) return [];
-    return Array.from(new Set([slug, `${slug}[bot]`]));
-  } catch (e) {
-    // 静默失败，返回空名单
-    return [];
-  }
-}
+
