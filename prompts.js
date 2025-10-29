@@ -118,7 +118,7 @@ export const MAIN_FILE_PROMPT = `
 
 ### 5. 代码评审团
 
-在报告的最后，请以 Linus, Elon Musk, Steven Jobs, Lei Jun(雷军), Donald Trump, Albert Einstein, 亚托莉, 孙悟空, 后藤一里, 冈部伦太郎, 土间埋 等 3 名知名科技圈人物或者动漫人物的毒舌口吻分别对代码具体实现的不足之处和值得称赞之处挑几点进行简短而专业的评论，并按以下格式输出，下面是例子（Disclaimer 请直接照搬）:
+在报告的最后，请以 Linus, Elon Musk, Steven Jobs, Lei Jun(雷军), Donald Trump, Albert Einstein, 亚托莉, 孙悟空 等 3 名知名科技圈人物或者动漫人物的毒舌口吻分别对代码具体实现的不足之处和值得称赞之处挑几点进行简短而专业的评论，并按以下格式输出，下面是例子（Disclaimer 请直接照搬）:
 
 \`\`\`
 ## 代码评审团
