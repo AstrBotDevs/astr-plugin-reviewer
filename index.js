@@ -9,7 +9,6 @@ const REQUIRED_ENV_VARS = [
   "OPENAI_API_KEY",
   "OPENAI_MODEL",
   "OPENAI_MAX_INPUT_TOKENS",
-  "OPENAI_MAX_OUTPUT_TOKENS",
 ];
 
 /**
@@ -454,9 +453,6 @@ async function reviewFileBatch(openai, files, config) {
     // 根据模型名称决定是否添加特殊参数
     if (config.model.includes("qwen3-235b-a22b-fp8")) {
       completionParams.response_format = { type: "text" };
-    } else {
-      completionParams.temperature = 0.2;
-      completionParams.max_tokens = config.maxOutputTokens;
     }
 
     const completion = await openai.chat.completions.create(completionParams);
@@ -859,7 +855,6 @@ function getConfig() {
     baseURL: process.env.OPENAI_BASE_URL || null,
     model: process.env.OPENAI_MODEL,
     maxInputTokens: parseInt(process.env.OPENAI_MAX_INPUT_TOKENS, 10) || 4000,
-    maxOutputTokens: parseInt(process.env.OPENAI_MAX_OUTPUT_TOKENS, 10) || 1500,
   };
 }
 
