@@ -266,6 +266,7 @@ async function performAIReview(octokit, repoInfo) {
   const config = getConfig();
   const openai = new OpenAI({
     apiKey: config.apiKey,
+    timeout: 8 * 60 * 1000,
     ...(config.baseURL && { baseURL: config.baseURL }),
   });
 
