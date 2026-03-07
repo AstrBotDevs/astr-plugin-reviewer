@@ -12,6 +12,10 @@ const TRIGGER_COUNT_DB_PATH = path.join(
 let triggerCountDb = null;
 let hasRegisteredCloseHook = false;
 
+/**
+ * 初始化审核触发计数的 LMDB 数据库。
+ * 如果数据库已初始化，则直接返回。
+ */
 export function initializeTriggerCountDb() {
   if (triggerCountDb) return;
 
@@ -22,6 +26,11 @@ export function initializeTriggerCountDb() {
   registerDbCloseHook();
 }
 
+/**
+ * 根据 Issue 内容获取对应仓库的审核触发配额信息。
+ * @param {object} issue GitHub Issue 对象。
+ * @returns {object|null} 配额信息对象，若无法解析仓库地址则返回 null。
+ */
 export function getReviewTriggerQuotaForIssue(issue) {
   const repoUrl = extractRepoUrlFromIssueBody(issue?.body || "");
   const repoKey = normalizePluginRepoKey(repoUrl);
@@ -33,6 +42,11 @@ export function getReviewTriggerQuotaForIssue(issue) {
   return getReviewTriggerQuotaForRepo(repoKey);
 }
 
+/**
+ * 将指定仓库的审核触发计数加一并返回更新后的配额信息。
+ * @param {string} repoKey 标准化的仓库标识（格式为 "owner/repo"）。
+ * @returns {object|null} 更新后的配额信息对象，若 repoKey 无效则返回 null。
+ */
 export function markReviewTriggerSuccessForRepo(repoKey) {
   if (!repoKey) {
     return null;
@@ -69,6 +83,12 @@ export function markReviewTriggerSuccessForRepo(repoKey) {
   });
 }
 
+/**
+ * 从 Issue 正文中提取插件仓库 URL。
+ * 解析 Issue 正文中的 JSON 代码块并提取 repo 字段。
+ * @param {string} body Issue 正文内容。
+ * @returns {string|null} 仓库 URL 字符串，若无法提取则返回 null。
+ */
 function extractRepoUrlFromIssueBody(body) {
   const jsonMatch = body.match(/```json\s*([\s\S]*?)\s*```/i);
   if (!jsonMatch?.[1]) return null;
@@ -82,6 +102,12 @@ function extractRepoUrlFromIssueBody(body) {
   }
 }
 
+/**
+ * 将各种格式的仓库 URL 标准化为 "owner/repo" 形式。
+ * 支持 HTTPS URL、SSH URL、以及 owner/repo 简写格式。
+ * @param {string|null|undefined} repoUrl 原始仓库 URL 或路径。
+ * @returns {string|null} 标准化的仓库标识，若无法解析则返回 null。
+ */
 function normalizePluginRepoKey(repoUrl) {
   if (typeof repoUrl !== "string") return null;
 
@@ -123,6 +149,11 @@ function normalizePluginRepoKey(repoUrl) {
   return `${owner}/${repo}`;
 }
 
+/**
+ * 获取指定仓库的审核触发配额信息。
+ * @param {string} repoKey 标准化的仓库标识（格式为 "owner/repo"）。
+ * @returns {{allowed: boolean, repoKey: string, max: number, used: number, remaining: number}} 配额信息对象。
+ */
 function getReviewTriggerQuotaForRepo(repoKey) {
   initializeTriggerCountDb();
   const maxTriggers = getMaxReviewTriggersPerRepo();
@@ -137,11 +168,20 @@ function getReviewTriggerQuotaForRepo(repoKey) {
   };
 }
 
+/**
+ * 从数据库中获取指定仓库当前的触发计数。
+ * @param {string} repoKey 标准化的仓库标识。
+ * @returns {number} 当前触发次数，若无记录则返回 0。
+ */
 function getCurrentTriggerCount(repoKey) {
   const currentCount = triggerCountDb.get(repoKey);
   return Number.isFinite(currentCount) ? Number(currentCount) : 0;
 }
 
+/**
+ * 注册进程退出时关闭数据库的钩子。
+ * 确保钩子只注册一次。
+ */
 function registerDbCloseHook() {
   if (hasRegisteredCloseHook) {
     return;
@@ -153,6 +193,10 @@ function registerDbCloseHook() {
   });
 }
 
+/**
+ * 关闭触发计数数据库连接。
+ * @returns {Promise<void>}
+ */
 async function closeTriggerCountDb() {
   if (!triggerCountDb) {
     return;
@@ -168,6 +212,11 @@ async function closeTriggerCountDb() {
   }
 }
 
+/**
+ * 获取每个仓库允许的最大审核触发次数。
+ * 优先使用环境变量 MAX_REVIEW_TRIGGERS_PER_REPO 的值，否则使用默认值。
+ * @returns {number} 最大审核触发次数。
+ */
 function getMaxReviewTriggersPerRepo() {
   const parsed = Number.parseInt(
     process.env.MAX_REVIEW_TRIGGERS_PER_REPO || "",
