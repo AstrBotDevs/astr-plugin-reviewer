@@ -13,6 +13,11 @@ services:
       - OPENAI_MAX_INPUT_TOKENS=${OPENAI_MAX_INPUT_TOKENS}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - MAX_REVIEW_TRIGGERS_PER_REPO=${MAX_REVIEW_TRIGGERS_PER_REPO:-5}
     volumes:
       - .:/app
+      - reviewer_data:/app/data
     restart: unless-stopped
+
+volumes:
+  reviewer_data:
