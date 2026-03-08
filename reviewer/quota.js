@@ -4,8 +4,7 @@ import { open } from "lmdb";
 import { DEFAULT_MAX_REVIEW_TRIGGERS_PER_REPO } from "./constants.js";
 
 const TRIGGER_COUNT_DB_PATH = path.join(
-  process.cwd(),
-  "data",
+  process.env.TRIGGER_COUNT_DB_DIR || path.join(process.cwd(), "data"),
   "repo-trigger-counts.lmdb"
 );
 

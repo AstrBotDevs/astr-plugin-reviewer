@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "start": "probot run ./index.js",
-    "test": "node --test"
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand"
   },
   "dependencies": {
     "js-yaml": "^4.1.0",
@@ -22,7 +22,7 @@
     "probot": "^13.0.1"
   },
   "devDependencies": {
-    "nock": "^14.0.0-beta.5",
+    "jest": "^30.2.0",
     "smee-client": "^2.0.0"
   },
   "engines": {
