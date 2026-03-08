@@ -18,7 +18,7 @@ export async function findLastReviewComment(context) {
         ) || null
     );
   } catch (error) {
-    console.error("Failed to find last review comment:", error);
+    context.log.error(error, "Failed to find last review comment");
     return null;
   }
 }
@@ -85,7 +85,7 @@ export async function postOrUpdateComment(
 
   const template = templates[type];
   if (!template) {
-    console.error(`Unknown comment type: ${type}`);
+    context.log.error("Unknown comment type: %s", type);
     return null;
   }
 
@@ -111,7 +111,7 @@ export async function postOrUpdateComment(
       isCommentPublished = true;
     }
   } catch (error) {
-    console.error("Failed to post or update comment:", error);
+    context.log.error(error, "Failed to post or update comment");
     return null;
   }
 
@@ -136,12 +136,12 @@ export async function postSystemErrorComment(context, error) {
       context.issue({ body: commentBody })
     );
   } catch (e) {
-    console.error("Failed to post system error comment:", e);
+    context.log.error(e, "Failed to post system error comment");
   }
 }
 
 /**
- * 根据审核结果，在Issue正文中添加或移除“重新审核”复选框。
+ * 根据审核结果，在Issue正文中添加或移除"重新审核"复选框。
  * @param {import('probot').Context} context 事件上下文。
  * @param {string} reviewOutcome 审核结果类型 (例如, 'format_error', 'review_success')。
  */
@@ -162,7 +162,7 @@ async function updateIssueBodyForReviewOptions(context, reviewOutcome) {
           body: newBody,
         });
       } catch (error) {
-        console.error(`Failed to add re-review checkbox:`, error);
+        context.log.warn(error, "Failed to add re-review checkbox");
       }
     }
   } else if (reviewOutcome === "review_success") {
@@ -174,7 +174,7 @@ async function updateIssueBodyForReviewOptions(context, reviewOutcome) {
           body: newBody,
         });
       } catch (error) {
-        console.error(`Failed to remove review options section:`, error);
+        context.log.warn(error, "Failed to remove review options section");
       }
     }
   }

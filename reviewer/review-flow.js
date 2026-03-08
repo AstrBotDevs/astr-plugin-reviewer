@@ -18,6 +18,7 @@ export async function handlePluginReview(context, isUpdate, commentId) {
   const quotaInfo = getReviewTriggerQuotaForIssue(issue);
 
   if (quotaInfo && !quotaInfo.allowed) {
+    context.log.warn({ issueNumber: issue.number, repoKey: quotaInfo.repoKey }, "Review quota exhausted");
     await postOrUpdateComment(
       context,
       "review_limit_reached",
@@ -27,6 +28,8 @@ export async function handlePluginReview(context, isUpdate, commentId) {
     );
     return;
   }
+
+  context.log.info({ issueNumber: issue.number, isUpdate }, "Review flow started");
 
   currentCommentId = await postOrUpdateComment(
     context,
@@ -38,6 +41,7 @@ export async function handlePluginReview(context, isUpdate, commentId) {
 
   const formatResult = await validateIssueFormat(issue);
   if (!formatResult.success) {
+    context.log.info({ issueNumber: issue.number }, "Format validation failed");
     await postOrUpdateComment(
       context,
       "format_error",
@@ -49,6 +53,11 @@ export async function handlePluginReview(context, isUpdate, commentId) {
   }
 
   const { pluginData } = formatResult;
+  const { pathname } = new URL(pluginData.repo);
+  const [, repoOwner, repoName] = pathname.split("/");
+
+  context.log.info({ issueNumber: issue.number, pluginName: pluginData.name, repo: `${repoOwner}/${repoName}` }, "Starting AI review");
+
   const reviewResult = await reviewPlugin(context, pluginData);
 
   if (reviewResult.success) {
@@ -71,10 +80,13 @@ export async function handlePluginReview(context, isUpdate, commentId) {
       try {
         markReviewTriggerSuccessForRepo(quotaInfo.repoKey);
       } catch (error) {
-        console.error("Failed to persist successful review trigger count:", error);
+        context.log.error({ err: error, repoKey: quotaInfo.repoKey }, "Failed to persist successful review trigger count");
       }
     }
+
+    context.log.info({ issueNumber: issue.number, pluginName: pluginData.name }, "Review completed successfully");
   } else {
+    context.log.warn({ issueNumber: issue.number, error: reviewResult.error }, "AI review returned failure");
     await postOrUpdateComment(
       context,
       "review_failure",

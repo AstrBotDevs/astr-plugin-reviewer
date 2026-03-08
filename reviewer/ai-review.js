@@ -88,7 +88,9 @@ async function performAIReview(octokit, repoInfo) {
     };
   }
 
-  const reviewResult = await reviewFileBatch(openai, selectedFiles, config);
+  octokit.log.info("Files selected for AI review", { fileCount: selectedFiles.length, totalPythonFiles: allPythonFiles.length });
+
+  const reviewResult = await reviewFileBatch(openai, selectedFiles, config, octokit.log);
 
   return combineReviewResults(reviewResult, allPythonFiles.length, selectedFiles);
 }
@@ -108,7 +110,7 @@ async function fetchPythonFileTree(octokit, repoInfo) {
   });
 
   if (!tree.tree?.length) {
-    console.error("Repository tree is invalid or empty.");
+    octokit.log.warn("Repository tree is invalid or empty", { owner: repoInfo.owner, repo: repoInfo.repo });
     return [];
   }
 
@@ -190,7 +192,7 @@ async function selectAndFetchFilesForReview(
       totalEstimatedTokens += estimatedTokens;
       selected.push({ path: fileMeta.path, content });
     } catch (error) {
-      console.error(`Failed to fetch content for ${fileMeta.path}:`, error);
+      octokit.log.warn("Failed to fetch file content, skipping", { filePath: fileMeta.path });
       continue;
     }
   }
@@ -232,9 +234,10 @@ function removeCommentsFromLine(line) {
  * @param {OpenAI} openai OpenAI客户端实例。
  * @param {Array<{path: string, content: string}>} files 需要审核的文件（已包含内容）。
  * @param {object} config 应用配置。
+ * @param {object} log 日志器实例。
  * @returns {Promise<{success: boolean, review?: string, error?: string, tokensUsed?: number}>}
  */
-async function reviewFileBatch(openai, files, config) {
+async function reviewFileBatch(openai, files, config, log) {
   if (files.length === 0) {
     return { success: false, error: "未选择任何文件进行审查。" };
   }
@@ -263,7 +266,7 @@ async function reviewFileBatch(openai, files, config) {
       review: responseContent,
     };
   } catch (error) {
-    console.error(`批量文件审核API调用失败:`, error);
+    log.error("AI batch review API call failed", { err: error });
     return {
       success: false,
       error: "调用AI审核服务时发生内部错误。",

@@ -14,6 +14,8 @@ export default (app) => {
   validateEnvironment();
   initializeTriggerCountDb();
 
+  app.log.info("Plugin reviewer app loaded");
+
   app.on(["issues.opened", "issues.edited"], async (context) => {
     const { issue, action } = context.payload;
 
@@ -33,6 +35,7 @@ export default (app) => {
         lastReviewComment?.body.includes("## ⏳ 正在审核中...") ||
         !issue.body?.match(/[-*]\s*\[[xX]\]\s*重新提交审核/)
       ) {
+        app.log.debug({ issueNumber: issue.number }, "Skipping edited issue, re-review conditions not met");
         return;
       }
 
@@ -49,9 +52,12 @@ export default (app) => {
       });
     }
 
+    app.log.info({ issueNumber: issue.number, action }, "Processing plugin-publish issue event");
+
     try {
       await handlePluginReview(context, isUpdate, commentToUpdateId);
     } catch (error) {
+      app.log.error({ err: error, issueNumber: issue.number }, "Error handling plugin review");
       await postSystemErrorComment(context, error);
     }
   });
@@ -74,8 +80,10 @@ export default (app) => {
       const body = comment.body || "";
       if (!/@astrpluginreviewer\s+review/i.test(body)) return;
 
+      app.log.info({ issueNumber: issue.number, commentId: comment.id }, "Review requested via comment command");
       await handlePluginReview(context, false, null);
     } catch (error) {
+      app.log.error({ err: error, issueNumber: issue.number }, "Error handling comment review request");
       await postSystemErrorComment(context, error);
     }
   });

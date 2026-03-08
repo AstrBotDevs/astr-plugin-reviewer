@@ -158,7 +158,7 @@ export async function validateMetadataYaml(octokit, repoInfo, pluginData) {
 
     return { success: errors.length === 0, errors };
   } catch (error) {
-    console.error("Error validating metadata.yaml:", error);
+    octokit.log.error("Unexpected error validating metadata.yaml", { err: error });
     errors.push(`验证metadata.yaml时出现系统错误: ${error.message}`);
     return { success: false, errors };
   }

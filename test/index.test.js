@@ -35,6 +35,7 @@ function createMockApp() {
         handlers[event] = handler;
       }
     }),
+    log: { trace() {}, debug() {}, info() {}, warn() {}, error() {}, fatal() {} },
   };
   return { mockApp, handlers };
 }

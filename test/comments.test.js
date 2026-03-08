@@ -19,6 +19,7 @@ function createMockContext(payloadOverrides = {}, octokitOverrides = {}) {
   };
 
   return {
+    log: { trace() {}, debug() {}, info() {}, warn() {}, error() {}, fatal() {} },
     payload: {
       issue: {
         number: 1,

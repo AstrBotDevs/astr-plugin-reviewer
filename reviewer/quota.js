@@ -23,6 +23,7 @@ export function initializeTriggerCountDb() {
     path: TRIGGER_COUNT_DB_PATH,
   });
   registerDbCloseHook();
+  console.debug("Trigger count DB initialized at %s", TRIGGER_COUNT_DB_PATH);
 }
 
 /**
@@ -38,7 +39,9 @@ export function getReviewTriggerQuotaForIssue(issue) {
     return null;
   }
 
-  return getReviewTriggerQuotaForRepo(repoKey);
+  const quota = getReviewTriggerQuotaForRepo(repoKey);
+  console.debug("Quota check for %s: used=%d, remaining=%d, allowed=%s", repoKey, quota.used, quota.remaining, quota.allowed);
+  return quota;
 }
 
 /**
@@ -58,6 +61,7 @@ export function markReviewTriggerSuccessForRepo(repoKey) {
     const currentCount = getCurrentTriggerCount(repoKey);
 
     if (currentCount >= maxTriggers) {
+      console.debug("Quota already at max for %s (%d/%d), not incrementing", repoKey, currentCount, maxTriggers);
       return {
         incremented: false,
         allowed: false,
@@ -71,6 +75,7 @@ export function markReviewTriggerSuccessForRepo(repoKey) {
     const nextCount = currentCount + 1;
     triggerCountDb.putSync(repoKey, nextCount);
 
+    console.debug("Trigger count incremented for %s: %d/%d", repoKey, nextCount, maxTriggers);
     return {
       incremented: true,
       allowed: nextCount < maxTriggers,
@@ -206,6 +211,7 @@ async function closeTriggerCountDb() {
 
   try {
     await db.close();
+    console.debug("Trigger count DB closed");
   } catch (error) {
     console.error("Failed to close trigger count DB:", error);
   }

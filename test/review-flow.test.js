@@ -27,6 +27,7 @@ const { reviewPlugin } = await import("../reviewer/ai-review.js");
 
 function createMockContext(issueOverrides = {}) {
   return {
+    log: { trace() {}, debug() {}, info() {}, warn() {}, error() {}, fatal() {} },
     payload: {
       issue: {
         number: 1,

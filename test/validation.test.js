@@ -226,6 +226,7 @@ describe("validateMetadataYaml", () => {
 
   function createMockOctokit(yamlContent, overrides = {}) {
     return {
+      log: { debug() {}, info() {}, warn() {}, error() {} },
       rest: {
         repos: {
           get: jest.fn().mockResolvedValue({

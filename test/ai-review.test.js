@@ -42,7 +42,9 @@ describe("reviewPlugin", () => {
 
   function createMockContext() {
     return {
+      log: { trace() {}, debug() {}, info() {}, warn() {}, error() {}, fatal() {} },
       octokit: {
+        log: { debug() {}, info() {}, warn() {}, error() {} },
         rest: {
           repos: {
             get: jest
