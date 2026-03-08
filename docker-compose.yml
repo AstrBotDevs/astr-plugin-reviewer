@@ -14,9 +14,10 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL}
       - MAX_REVIEW_TRIGGERS_PER_REPO=${MAX_REVIEW_TRIGGERS_PER_REPO:-5}
+      - LOG_LEVEL=warn
     volumes:
       - .:/app
-      - reviewer_data:/app/data
+      - reviewer_data:/usr/src/app/data
     restart: unless-stopped
 
 volumes:
