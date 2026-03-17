@@ -1,6 +1,7 @@
 export const MAX_FILES_TO_REVIEW = 15;
 export const TOKEN_ESTIMATION_RATIO = 0.25;
 export const DEFAULT_MAX_REVIEW_TRIGGERS_PER_REPO = 5;
+export const SUPPORTED_REPOSITORY_FULL_NAME = "AstrBotDevs/AstrBot";
 
 export const REQUIRED_ENV_VARS = [
   "OPENAI_API_KEY",

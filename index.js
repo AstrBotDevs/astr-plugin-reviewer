@@ -1,8 +1,10 @@
 import { validateEnvironment } from "./reviewer/config.js";
 import {
   findLastReviewComment,
+  postOrUpdateComment,
   postSystemErrorComment,
 } from "./reviewer/comments.js";
+import { SUPPORTED_REPOSITORY_FULL_NAME } from "./reviewer/constants.js";
 import { initializeTriggerCountDb } from "./reviewer/quota.js";
 import { handlePluginReview } from "./reviewer/review-flow.js";
 
@@ -16,11 +18,44 @@ export default (app) => {
 
   app.log.info("Plugin reviewer app loaded");
 
+  async function ensureSupportedRepository(context) {
+    const repositoryFullName = context.payload.repository?.full_name;
+    if (repositoryFullName === SUPPORTED_REPOSITORY_FULL_NAME) {
+      return true;
+    }
+
+    app.log.warn(
+      { issueNumber: context.payload.issue?.number, repositoryFullName },
+      "App is installed on an unsupported repository"
+    );
+
+    const lastReviewComment = await findLastReviewComment(context);
+    if (lastReviewComment?.body?.includes("当前仓库不受支持")) {
+      return false;
+    }
+
+    await postOrUpdateComment(
+      context,
+      "unsupported_repository",
+      {
+        repositoryFullName: repositoryFullName || "未知仓库",
+        supportedRepositoryFullName: SUPPORTED_REPOSITORY_FULL_NAME,
+      },
+      false,
+      null
+    );
+    return false;
+  }
+
   app.on(["issues.opened", "issues.edited"], async (context) => {
     const { issue, action } = context.payload;
     app.log.debug({ issueNumber: issue.number, action }, `Received issue event ${issue.number} with action ${action}`);
 
     if (!issue.labels?.some((label) => label.name === "plugin-publish")) {
+      return;
+    }
+
+    if (!(await ensureSupportedRepository(context))) {
       return;
     }
 
@@ -67,6 +102,10 @@ export default (app) => {
     const { issue, comment } = context.payload;
 
     if (!issue.labels?.some((label) => label.name === "plugin-publish")) {
+      return;
+    }
+
+    if (!(await ensureSupportedRepository(context))) {
       return;
     }
 

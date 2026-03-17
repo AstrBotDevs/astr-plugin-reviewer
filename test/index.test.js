@@ -10,6 +10,7 @@ jest.unstable_mockModule("../reviewer/quota.js", () => ({
 
 jest.unstable_mockModule("../reviewer/comments.js", () => ({
   findLastReviewComment: jest.fn(),
+  postOrUpdateComment: jest.fn(),
   postSystemErrorComment: jest.fn(),
 }));
 
@@ -21,7 +22,7 @@ const app = (await import("../index.js")).default;
 
 const { validateEnvironment } = await import("../reviewer/config.js");
 const { initializeTriggerCountDb } = await import("../reviewer/quota.js");
-const { findLastReviewComment, postSystemErrorComment } = await import(
+const { findLastReviewComment, postOrUpdateComment, postSystemErrorComment } = await import(
   "../reviewer/comments.js"
 );
 const { handlePluginReview } = await import("../reviewer/review-flow.js");
@@ -42,7 +43,10 @@ function createMockApp() {
 
 function createMockContext(payload) {
   return {
-    payload,
+    payload: {
+      repository: { full_name: "AstrBotDevs/AstrBot" },
+      ...payload,
+    },
     octokit: {
       issues: {
         update: jest.fn().mockResolvedValue({}),
@@ -135,6 +139,33 @@ describe("index (app entry point)", () => {
       await handlers["issues.opened"](context);
 
       expect(postSystemErrorComment).toHaveBeenCalledWith(context, error);
+    });
+
+    it("posts uninstall notice and skips review on unsupported repository", async () => {
+      findLastReviewComment.mockResolvedValue(null);
+      const context = createMockContext({
+        action: "opened",
+        repository: { full_name: "someone/other" },
+        issue: {
+          number: 1,
+          labels: [{ name: "plugin-publish" }],
+          body: "some body",
+        },
+      });
+
+      await handlers["issues.opened"](context);
+
+      expect(handlePluginReview).not.toHaveBeenCalled();
+      expect(postOrUpdateComment).toHaveBeenCalledWith(
+        context,
+        "unsupported_repository",
+        expect.objectContaining({
+          repositoryFullName: "someone/other",
+          supportedRepositoryFullName: "AstrBotDevs/AstrBot",
+        }),
+        false,
+        null
+      );
     });
   });
 
@@ -397,6 +428,37 @@ describe("index (app entry point)", () => {
       await handlers["issue_comment.created"](context);
 
       expect(postSystemErrorComment).toHaveBeenCalledWith(context, error);
+    });
+
+    it("posts uninstall notice and skips review command on unsupported repository", async () => {
+      findLastReviewComment.mockResolvedValue(null);
+      const context = createMockContext({
+        action: "created",
+        repository: { full_name: "someone/other" },
+        issue: {
+          number: 1,
+          labels: [{ name: "plugin-publish" }],
+        },
+        comment: {
+          id: 50,
+          body: "@astrpluginreviewer review",
+          user: { login: "testuser", type: "User" },
+        },
+      });
+
+      await handlers["issue_comment.created"](context);
+
+      expect(handlePluginReview).not.toHaveBeenCalled();
+      expect(postOrUpdateComment).toHaveBeenCalledWith(
+        context,
+        "unsupported_repository",
+        expect.objectContaining({
+          repositoryFullName: "someone/other",
+          supportedRepositoryFullName: "AstrBotDevs/AstrBot",
+        }),
+        false,
+        null
+      );
     });
   });
 });

@@ -81,6 +81,13 @@ export async function postOrUpdateComment(
       footer:
         "*如需继续自动审核，请联系维护者调整上限配置。*\n\n*此消息由系统自动生成*",
     },
+    unsupported_repository: {
+      title: "## ⚠️ 当前仓库不受支持",
+      body: `检测到本应用当前安装在 \`${data.repositoryFullName || "未知仓库"}\`。\n\n本应用仅支持 \`${
+        data.supportedRepositoryFullName || "AstrBotDevs/AstrBot"
+      }\`。请尽快卸载此 GitHub App，避免继续触发无效审核。`,
+      footer: "*此消息由系统自动生成*",
+    },
   };
 
   const template = templates[type];

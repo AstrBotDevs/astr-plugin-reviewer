@@ -228,6 +228,25 @@ describe("postOrUpdateComment", () => {
     expect(body).toContain("5 次");
   });
 
+  it("includes uninstall notice in unsupported_repository comment", async () => {
+    const context = createMockContext();
+    await postOrUpdateComment(
+      context,
+      "unsupported_repository",
+      {
+        repositoryFullName: "foo/bar",
+        supportedRepositoryFullName: "AstrBotDevs/AstrBot",
+      },
+      false,
+      null
+    );
+    const body = context.octokit.issues.createComment.mock.calls[0][0].body;
+    expect(body).toContain("当前仓库不受支持");
+    expect(body).toContain("foo/bar");
+    expect(body).toContain("AstrBotDevs/AstrBot");
+    expect(body).toContain("卸载此 GitHub App");
+  });
+
   it("appends quota hint to footer", async () => {
     const context = createMockContext();
     await postOrUpdateComment(
