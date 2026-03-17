@@ -18,6 +18,7 @@ export default (app) => {
 
   app.on(["issues.opened", "issues.edited"], async (context) => {
     const { issue, action } = context.payload;
+    app.log.debug({ issueNumber: issue.number, action }, `Received issue event ${issue.number} with action ${action}`);
 
     if (!issue.labels?.some((label) => label.name === "plugin-publish")) {
       return;
