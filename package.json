@@ -13,7 +13,8 @@
   ],
   "scripts": {
     "start": "probot run ./index.js",
-    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand"
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand",
+    "show:lmdb": "node ./scripts/show-lmdb.js"
   },
   "dependencies": {
     "js-yaml": "^4.1.0",

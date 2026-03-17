@@ -4,7 +4,8 @@ import { open } from "lmdb";
 import { DEFAULT_MAX_REVIEW_TRIGGERS_PER_REPO } from "./constants.js";
 
 const TRIGGER_COUNT_DB_PATH = path.join(
-  process.env.TRIGGER_COUNT_DB_DIR || path.join(process.cwd(), "data"),
+  process.cwd(),
+  "data",
   "repo-trigger-counts.lmdb"
 );
 
@@ -32,8 +33,7 @@ export function initializeTriggerCountDb() {
  * @returns {object|null} 配额信息对象，若无法解析仓库地址则返回 null。
  */
 export function getReviewTriggerQuotaForIssue(issue) {
-  const repoUrl = extractRepoUrlFromIssueBody(issue?.body || "");
-  const repoKey = normalizePluginRepoKey(repoUrl);
+  const repoKey = getPluginRepoKeyFromIssue(issue);
 
   if (!repoKey) {
     return null;
@@ -42,6 +42,16 @@ export function getReviewTriggerQuotaForIssue(issue) {
   const quota = getReviewTriggerQuotaForRepo(repoKey);
   console.debug("Quota check for %s: used=%d, remaining=%d, allowed=%s", repoKey, quota.used, quota.remaining, quota.allowed);
   return quota;
+}
+
+/**
+ * 根据 Issue 正文提取并标准化插件仓库标识。
+ * @param {object|null|undefined} issue GitHub Issue 对象。
+ * @returns {string|null} 标准化仓库标识（格式为 "owner/repo"），若无法解析则返回 null。
+ */
+export function getPluginRepoKeyFromIssue(issue) {
+  const repoUrl = extractRepoUrlFromIssueBody(issue?.body || "");
+  return normalizePluginRepoKey(repoUrl);
 }
 
 /**

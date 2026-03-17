@@ -1,12 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-
-// Create a temp directory for the test database BEFORE importing quota.js,
-// so the module-level TRIGGER_COUNT_DB_PATH picks up the env var.
-const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "quota-integ-"));
-process.env.TRIGGER_COUNT_DB_DIR = tmpDir;
 
 const {
   initializeTriggerCountDb,
@@ -22,6 +14,11 @@ function makeIssueWithRepo(repoUrl) {
 
 describe("quota integration (real LMDB)", () => {
   const originalEnv = { ...process.env };
+  const runId = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+
+  function createRepoKey(name) {
+    return `integ-test-${runId}/${name}`;
+  }
 
   beforeEach(() => {
     delete process.env.MAX_REVIEW_TRIGGERS_PER_REPO;
@@ -36,12 +33,13 @@ describe("quota integration (real LMDB)", () => {
   initializeTriggerCountDb();
 
   it("returns 0 used for a repo with no prior reviews", () => {
-    const issue = makeIssueWithRepo("https://github.com/integ-test/fresh-repo");
+    const repoKey = createRepoKey("fresh-repo");
+    const issue = makeIssueWithRepo(`https://github.com/${repoKey}`);
     const quota = getReviewTriggerQuotaForIssue(issue);
 
     expect(quota).toMatchObject({
       allowed: true,
-      repoKey: "integ-test/fresh-repo",
+      repoKey,
       max: 5,
       used: 0,
       remaining: 5,
@@ -49,7 +47,7 @@ describe("quota integration (real LMDB)", () => {
   });
 
   it("persists a single write and reads it back correctly", () => {
-    const repoKey = "integ-test/write-read";
+    const repoKey = createRepoKey("write-read");
     const issue = makeIssueWithRepo(`https://github.com/${repoKey}`);
 
     // Before write
@@ -69,7 +67,7 @@ describe("quota integration (real LMDB)", () => {
   });
 
   it("accumulates multiple increments correctly", () => {
-    const repoKey = "integ-test/multi-incr";
+    const repoKey = createRepoKey("multi-incr");
     const issue = makeIssueWithRepo(`https://github.com/${repoKey}`);
 
     markReviewTriggerSuccessForRepo(repoKey);
@@ -83,7 +81,7 @@ describe("quota integration (real LMDB)", () => {
   });
 
   it("blocks reviews when quota is exhausted", () => {
-    const repoKey = "integ-test/exhaust";
+    const repoKey = createRepoKey("exhaust");
     const issue = makeIssueWithRepo(`https://github.com/${repoKey}`);
 
     for (let i = 0; i < 5; i++) {
@@ -97,7 +95,7 @@ describe("quota integration (real LMDB)", () => {
   });
 
   it("refuses to increment beyond the max limit", () => {
-    const repoKey = "integ-test/over-limit";
+    const repoKey = createRepoKey("over-limit");
 
     for (let i = 0; i < 5; i++) {
       markReviewTriggerSuccessForRepo(repoKey);
@@ -116,8 +114,8 @@ describe("quota integration (real LMDB)", () => {
   });
 
   it("keeps independent quotas per repo", () => {
-    const repoA = "integ-test/repo-a";
-    const repoB = "integ-test/repo-b";
+    const repoA = createRepoKey("repo-a");
+    const repoB = createRepoKey("repo-b");
 
     markReviewTriggerSuccessForRepo(repoA);
     markReviewTriggerSuccessForRepo(repoA);
@@ -136,7 +134,7 @@ describe("quota integration (real LMDB)", () => {
 
   it("respects custom MAX_REVIEW_TRIGGERS_PER_REPO", () => {
     process.env.MAX_REVIEW_TRIGGERS_PER_REPO = "3";
-    const repoKey = "integ-test/custom-max";
+    const repoKey = createRepoKey("custom-max");
     const issue = makeIssueWithRepo(`https://github.com/${repoKey}`);
 
     markReviewTriggerSuccessForRepo(repoKey);
@@ -151,16 +149,17 @@ describe("quota integration (real LMDB)", () => {
   });
 
   it("correctly normalizes various URL formats and reads back the same key", () => {
-    const repoKey = "integ-test/url-formats";
+    const repoKey = createRepoKey("url-formats");
+    const [owner, repo] = repoKey.split("/");
     markReviewTriggerSuccessForRepo(repoKey);
 
     // All these URL formats should resolve to the same repo key
     const urls = [
-      "https://github.com/integ-test/url-formats",
-      "https://github.com/integ-test/url-formats.git",
-      "https://github.com/integ-test/url-formats/",
-      "git+https://github.com/integ-test/url-formats",
-      "git@github.com:integ-test/url-formats",
+      `https://github.com/${owner}/${repo}`,
+      `https://github.com/${owner}/${repo}.git`,
+      `https://github.com/${owner}/${repo}/`,
+      `git+https://github.com/${owner}/${repo}`,
+      `git@github.com:${owner}/${repo}`,
     ];
 
     for (const url of urls) {
@@ -172,7 +171,7 @@ describe("quota integration (real LMDB)", () => {
   });
 
   it("markReviewTriggerSuccessForRepo returns correct allowed flag at boundary", () => {
-    const repoKey = "integ-test/boundary";
+    const repoKey = createRepoKey("boundary");
 
     // Increment to max-1 (4th)
     for (let i = 0; i < 4; i++) {

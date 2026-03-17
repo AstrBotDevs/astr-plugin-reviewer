@@ -5,7 +5,10 @@ import {
   postSystemErrorComment,
 } from "./reviewer/comments.js";
 import { SUPPORTED_REPOSITORY_FULL_NAME } from "./reviewer/constants.js";
-import { initializeTriggerCountDb } from "./reviewer/quota.js";
+import {
+  cleanupDedupMappingForClosedIssue,
+  shouldContinueAfterDedupCheck,
+} from "./reviewer/issue-dedup.js";
 import { handlePluginReview } from "./reviewer/review-flow.js";
 
 /**
@@ -14,9 +17,12 @@ import { handlePluginReview } from "./reviewer/review-flow.js";
  */
 export default (app) => {
   validateEnvironment();
-  initializeTriggerCountDb();
 
   app.log.info("Plugin reviewer app loaded");
+
+  function hasPluginPublishLabel(issue) {
+    return issue.labels?.some((label) => label.name === "plugin-publish");
+  }
 
   async function ensureSupportedRepository(context) {
     const repositoryFullName = context.payload.repository?.full_name;
@@ -55,7 +61,24 @@ export default (app) => {
       return;
     }
 
-    if (!issue.labels?.some((label) => label.name === "plugin-publish")) {
+    if (!hasPluginPublishLabel(issue)) {
+      return;
+    }
+
+    if (action === "opened") {
+      try {
+        const shouldContinue = await shouldContinueAfterDedupCheck(
+          context,
+          app.log
+        );
+        if (shouldContinue) {
+          app.log.info({ issueNumber: issue.number, action }, "Processing plugin-publish issue event");
+          await handlePluginReview(context, false, null);
+        }
+      } catch (error) {
+        app.log.error({ err: error, issueNumber: issue.number }, "Error handling opened issue duplicate check");
+        await postSystemErrorComment(context, error);
+      }
       return;
     }
 
@@ -105,7 +128,7 @@ export default (app) => {
       return;
     }
 
-    if (!issue.labels?.some((label) => label.name === "plugin-publish")) {
+    if (!hasPluginPublishLabel(issue)) {
       return;
     }
 
@@ -126,5 +149,14 @@ export default (app) => {
       app.log.error({ err: error, issueNumber: issue.number }, "Error handling comment review request");
       await postSystemErrorComment(context, error);
     }
+  });
+
+  app.on("issues.closed", async (context) => {
+    const { issue } = context.payload;
+
+    if (!hasPluginPublishLabel(issue)) {
+      return;
+    }
+    cleanupDedupMappingForClosedIssue(issue, app.log);
   });
 };

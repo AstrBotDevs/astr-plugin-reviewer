@@ -4,8 +4,9 @@ jest.unstable_mockModule("../reviewer/config.js", () => ({
   validateEnvironment: jest.fn(),
 }));
 
-jest.unstable_mockModule("../reviewer/quota.js", () => ({
-  initializeTriggerCountDb: jest.fn(),
+jest.unstable_mockModule("../reviewer/issue-dedup.js", () => ({
+  shouldContinueAfterDedupCheck: jest.fn(),
+  cleanupDedupMappingForClosedIssue: jest.fn(),
 }));
 
 jest.unstable_mockModule("../reviewer/comments.js", () => ({
@@ -21,7 +22,10 @@ jest.unstable_mockModule("../reviewer/review-flow.js", () => ({
 const app = (await import("../index.js")).default;
 
 const { validateEnvironment } = await import("../reviewer/config.js");
-const { initializeTriggerCountDb } = await import("../reviewer/quota.js");
+const {
+  shouldContinueAfterDedupCheck,
+  cleanupDedupMappingForClosedIssue,
+} = await import("../reviewer/issue-dedup.js");
 const { findLastReviewComment, postOrUpdateComment, postSystemErrorComment } = await import(
   "../reviewer/comments.js"
 );
@@ -49,6 +53,8 @@ function createMockContext(payload) {
     },
     octokit: {
       issues: {
+        createComment: jest.fn().mockResolvedValue({}),
+        get: jest.fn().mockResolvedValue({ data: { state: "open" } }),
         update: jest.fn().mockResolvedValue({}),
       },
     },
@@ -66,19 +72,20 @@ describe("index (app entry point)", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    shouldContinueAfterDedupCheck.mockResolvedValue(true);
     const result = createMockApp();
     handlers = result.handlers;
     app(result.mockApp);
   });
 
-  it("calls validateEnvironment and initializeTriggerCountDb on setup", () => {
+  it("calls validateEnvironment on setup", () => {
     expect(validateEnvironment).toHaveBeenCalledTimes(1);
-    expect(initializeTriggerCountDb).toHaveBeenCalledTimes(1);
   });
 
   it("registers handlers for correct events", () => {
     expect(handlers["issues.opened"]).toBeDefined();
     expect(handlers["issues.edited"]).toBeDefined();
+    expect(handlers["issues.closed"]).toBeDefined();
     expect(handlers["issue_comment.created"]).toBeDefined();
   });
 
@@ -96,6 +103,40 @@ describe("index (app entry point)", () => {
       await handlers["issues.opened"](context);
 
       expect(handlePluginReview).toHaveBeenCalledWith(context, false, null);
+    });
+
+    it("runs dedup check for opened plugin-publish issues", async () => {
+      const context = createMockContext({
+        action: "opened",
+        issue: {
+          number: 1,
+          labels: [{ name: "plugin-publish" }],
+          body: "some body",
+        },
+      });
+
+      await handlers["issues.opened"](context);
+
+      expect(shouldContinueAfterDedupCheck).toHaveBeenCalledWith(
+        context,
+        expect.any(Object)
+      );
+    });
+
+    it("skips review when dedup check returns false", async () => {
+      shouldContinueAfterDedupCheck.mockResolvedValue(false);
+      const context = createMockContext({
+        action: "opened",
+        issue: {
+          number: 10,
+          labels: [{ name: "plugin-publish" }],
+          body: "some body",
+        },
+      });
+
+      await handlers["issues.opened"](context);
+
+      expect(handlePluginReview).not.toHaveBeenCalled();
     });
 
     it("skips issues without plugin-publish label", async () => {
@@ -139,6 +180,24 @@ describe("index (app entry point)", () => {
       await handlers["issues.opened"](context);
 
       expect(postSystemErrorComment).toHaveBeenCalledWith(context, error);
+    });
+
+    it("calls postSystemErrorComment when dedup check throws", async () => {
+      const context = createMockContext({
+        action: "opened",
+        issue: {
+          number: 1,
+          labels: [{ name: "plugin-publish" }],
+          body: "some body",
+        },
+      });
+      const error = new Error("Dedup check failed");
+      shouldContinueAfterDedupCheck.mockRejectedValue(error);
+
+      await handlers["issues.opened"](context);
+
+      expect(postSystemErrorComment).toHaveBeenCalledWith(context, error);
+      expect(handlePluginReview).not.toHaveBeenCalled();
     });
 
     it("posts uninstall notice and skips review on unsupported repository", async () => {
@@ -309,6 +368,41 @@ describe("index (app entry point)", () => {
       const updateCall = context.octokit.issues.update.mock.calls[0][0];
       expect(updateCall.body).toContain("- [ ] 重新提交审核");
       expect(updateCall.body).not.toMatch(/\[x\]\s*重新提交审核/);
+    });
+  });
+
+  describe("issues.closed handler", () => {
+    it("calls dedup cleanup for plugin-publish issues", async () => {
+      const context = createMockContext({
+        action: "closed",
+        issue: {
+          number: 12,
+          labels: [{ name: "plugin-publish" }],
+          body: "some body",
+        },
+      });
+
+      await handlers["issues.closed"](context);
+
+      expect(cleanupDedupMappingForClosedIssue).toHaveBeenCalledWith(
+        context.payload.issue,
+        expect.any(Object)
+      );
+    });
+
+    it("skips cleanup without plugin-publish label", async () => {
+      const context = createMockContext({
+        action: "closed",
+        issue: {
+          number: 12,
+          labels: [{ name: "bug" }],
+          body: "some body",
+        },
+      });
+
+      await handlers["issues.closed"](context);
+
+      expect(cleanupDedupMappingForClosedIssue).not.toHaveBeenCalled();
     });
   });
 
