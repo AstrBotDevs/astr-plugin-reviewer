@@ -167,6 +167,33 @@ describe("index (app entry point)", () => {
         null
       );
     });
+
+    it("posts uninstall notice on unsupported repository even without plugin-publish label", async () => {
+      findLastReviewComment.mockResolvedValue(null);
+      const context = createMockContext({
+        action: "opened",
+        repository: { full_name: "someone/other" },
+        issue: {
+          number: 1,
+          labels: [{ name: "bug" }],
+          body: "some body",
+        },
+      });
+
+      await handlers["issues.opened"](context);
+
+      expect(handlePluginReview).not.toHaveBeenCalled();
+      expect(postOrUpdateComment).toHaveBeenCalledWith(
+        context,
+        "unsupported_repository",
+        expect.objectContaining({
+          repositoryFullName: "someone/other",
+          supportedRepositoryFullName: "AstrBotDevs/AstrBot",
+        }),
+        false,
+        null
+      );
+    });
   });
 
   describe("issues.edited handler", () => {
@@ -442,6 +469,37 @@ describe("index (app entry point)", () => {
         comment: {
           id: 50,
           body: "@astrpluginreviewer review",
+          user: { login: "testuser", type: "User" },
+        },
+      });
+
+      await handlers["issue_comment.created"](context);
+
+      expect(handlePluginReview).not.toHaveBeenCalled();
+      expect(postOrUpdateComment).toHaveBeenCalledWith(
+        context,
+        "unsupported_repository",
+        expect.objectContaining({
+          repositoryFullName: "someone/other",
+          supportedRepositoryFullName: "AstrBotDevs/AstrBot",
+        }),
+        false,
+        null
+      );
+    });
+
+    it("posts uninstall notice on unsupported repository even without plugin-publish label", async () => {
+      findLastReviewComment.mockResolvedValue(null);
+      const context = createMockContext({
+        action: "created",
+        repository: { full_name: "someone/other" },
+        issue: {
+          number: 1,
+          labels: [{ name: "bug" }],
+        },
+        comment: {
+          id: 50,
+          body: "just a normal comment",
           user: { login: "testuser", type: "User" },
         },
       });

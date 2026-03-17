@@ -51,11 +51,11 @@ export default (app) => {
     const { issue, action } = context.payload;
     app.log.debug({ issueNumber: issue.number, action }, `Received issue event ${issue.number} with action ${action}`);
 
-    if (!issue.labels?.some((label) => label.name === "plugin-publish")) {
+    if (!(await ensureSupportedRepository(context))) {
       return;
     }
 
-    if (!(await ensureSupportedRepository(context))) {
+    if (!issue.labels?.some((label) => label.name === "plugin-publish")) {
       return;
     }
 
@@ -101,11 +101,11 @@ export default (app) => {
   app.on(["issue_comment.created"], async (context) => {
     const { issue, comment } = context.payload;
 
-    if (!issue.labels?.some((label) => label.name === "plugin-publish")) {
+    if (!(await ensureSupportedRepository(context))) {
       return;
     }
 
-    if (!(await ensureSupportedRepository(context))) {
+    if (!issue.labels?.some((label) => label.name === "plugin-publish")) {
       return;
     }
 
