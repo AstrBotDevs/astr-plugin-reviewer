@@ -105,6 +105,23 @@ describe("index (app entry point)", () => {
       expect(handlePluginReview).toHaveBeenCalledWith(context, false, null);
     });
 
+    it("accepts any repository under AstrBotDevs", async () => {
+      const context = createMockContext({
+        action: "opened",
+        repository: { full_name: "AstrBotDevs/another-repo" },
+        issue: {
+          number: 1,
+          labels: [{ name: "plugin-publish" }],
+          body: "some body",
+        },
+      });
+
+      await handlers["issues.opened"](context);
+
+      expect(handlePluginReview).toHaveBeenCalledWith(context, false, null);
+      expect(postOrUpdateComment).not.toHaveBeenCalled();
+    });
+
     it("runs dedup check for opened plugin-publish issues", async () => {
       const context = createMockContext({
         action: "opened",
@@ -220,7 +237,7 @@ describe("index (app entry point)", () => {
         "unsupported_repository",
         expect.objectContaining({
           repositoryFullName: "someone/other",
-          supportedRepositoryFullName: "AstrBotDevs/AstrBot",
+          supportedRepositoryPrefix: "AstrBotDevs/",
         }),
         false,
         null
@@ -247,7 +264,7 @@ describe("index (app entry point)", () => {
         "unsupported_repository",
         expect.objectContaining({
           repositoryFullName: "someone/other",
-          supportedRepositoryFullName: "AstrBotDevs/AstrBot",
+          supportedRepositoryPrefix: "AstrBotDevs/",
         }),
         false,
         null
@@ -575,7 +592,7 @@ describe("index (app entry point)", () => {
         "unsupported_repository",
         expect.objectContaining({
           repositoryFullName: "someone/other",
-          supportedRepositoryFullName: "AstrBotDevs/AstrBot",
+          supportedRepositoryPrefix: "AstrBotDevs/",
         }),
         false,
         null
@@ -606,7 +623,7 @@ describe("index (app entry point)", () => {
         "unsupported_repository",
         expect.objectContaining({
           repositoryFullName: "someone/other",
-          supportedRepositoryFullName: "AstrBotDevs/AstrBot",
+          supportedRepositoryPrefix: "AstrBotDevs/",
         }),
         false,
         null

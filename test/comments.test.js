@@ -235,7 +235,7 @@ describe("postOrUpdateComment", () => {
       "unsupported_repository",
       {
         repositoryFullName: "foo/bar",
-        supportedRepositoryFullName: "AstrBotDevs/AstrBot",
+        supportedRepositoryPrefix: "AstrBotDevs/",
       },
       false,
       null
@@ -243,7 +243,8 @@ describe("postOrUpdateComment", () => {
     const body = context.octokit.issues.createComment.mock.calls[0][0].body;
     expect(body).toContain("当前仓库不受支持");
     expect(body).toContain("foo/bar");
-    expect(body).toContain("AstrBotDevs/AstrBot");
+    expect(body).toContain("AstrBotDevs/");
+    expect(body).toContain("开头的仓库");
     expect(body).toContain("卸载此 GitHub App");
   });
 

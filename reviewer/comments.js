@@ -6,7 +6,7 @@
 export async function findLastReviewComment(context) {
   try {
     const { data: comments } = await context.octokit.issues.listComments(
-      context.issue()
+      context.issue(),
     );
     return (
       comments
@@ -14,7 +14,7 @@ export async function findLastReviewComment(context) {
         .find(
           (comment) =>
             comment.user?.type === "Bot" &&
-            /##\s*(⏳|⚠️|❌|🤖)/.test(comment.body)
+            /##\s*(⏳|⚠️|❌|🤖)/.test(comment.body),
         ) || null
     );
   } catch (error) {
@@ -37,7 +37,7 @@ export async function postOrUpdateComment(
   type,
   data,
   isUpdate,
-  commentId
+  commentId,
 ) {
   const templates = {
     review_started: {
@@ -83,9 +83,7 @@ export async function postOrUpdateComment(
     },
     unsupported_repository: {
       title: "## ⚠️ 当前仓库不受支持",
-      body: `检测到本应用当前安装在 \`${data.repositoryFullName || "未知仓库"}\`。\n\n本应用仅支持 \`${
-        data.supportedRepositoryFullName || "AstrBotDevs/AstrBot"
-      }\`。请尽快卸载此 GitHub App，避免继续触发无效审核。`,
+      body: `检测到本应用当前安装在 \`${data.repositoryFullName || "未知仓库"}\`。\n\n请尽快卸载此 GitHub App，避免继续触发无效审核。`,
       footer: "*此消息由系统自动生成*",
     },
   };
@@ -96,7 +94,10 @@ export async function postOrUpdateComment(
     return null;
   }
 
-  const footerWithQuota = appendQuotaHintToFooter(template.footer, data.quotaInfo);
+  const footerWithQuota = appendQuotaHintToFooter(
+    template.footer,
+    data.quotaInfo,
+  );
   const commentBody = `${template.title}\n\n${template.body}\n\n---\n\n${footerWithQuota}`;
   let postedCommentId = commentId;
   let isCommentPublished = false;
@@ -140,7 +141,7 @@ export async function postSystemErrorComment(context, error) {
   }\n\`\`\`\n\n请稍后重试，或联系维护者以获取帮助。\n\n*此消息由系统自动生成*`;
   try {
     await context.octokit.issues.createComment(
-      context.issue({ body: commentBody })
+      context.issue({ body: commentBody }),
     );
   } catch (e) {
     context.log.error(e, "Failed to post system error comment");

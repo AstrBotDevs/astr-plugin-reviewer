@@ -4,7 +4,7 @@ import {
   postOrUpdateComment,
   postSystemErrorComment,
 } from "./reviewer/comments.js";
-import { SUPPORTED_REPOSITORY_FULL_NAME } from "./reviewer/constants.js";
+import { SUPPORTED_REPOSITORY_PREFIX } from "./reviewer/constants.js";
 import {
   cleanupDedupMappingForClosedIssue,
   shouldContinueAfterDedupCheck,
@@ -26,7 +26,7 @@ export default (app) => {
 
   async function ensureSupportedRepository(context) {
     const repositoryFullName = context.payload.repository?.full_name;
-    if (repositoryFullName === SUPPORTED_REPOSITORY_FULL_NAME) {
+    if (repositoryFullName?.startsWith(SUPPORTED_REPOSITORY_PREFIX)) {
       return true;
     }
 
@@ -45,7 +45,7 @@ export default (app) => {
       "unsupported_repository",
       {
         repositoryFullName: repositoryFullName || "未知仓库",
-        supportedRepositoryFullName: SUPPORTED_REPOSITORY_FULL_NAME,
+        supportedRepositoryPrefix: SUPPORTED_REPOSITORY_PREFIX,
       },
       false,
       null
